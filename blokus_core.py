@@ -37,6 +37,12 @@ class Piece():
 
         self.rotation = 0
         self.flipped = False
+
+    def __repr__(self):
+        return 'Piece: color={}, value={}'.format(self.color, self.value)
+
+    def __str__(self):
+        return repr(self)
     
     def get_edge_squares(self):
         '''
@@ -68,14 +74,6 @@ class Piece():
                 if corner not in self.squares + self.edges:
                     corners.append(corner)
         return corners
-
-
-    def collides(self, other):
-        other_locations = other.square_locations()
-        for location in self.square_locations():
-            if location in other_locations:
-                return False
-        return True
 
     def square_locations(self, origin):
         '''
@@ -125,6 +123,12 @@ class Piece():
 
         return corners_copy
 
+    def collides(self, other):
+        other_locations = other.square_locations()
+        for location in self.square_locations():
+            if location in other_locations:
+                return False
+        return True
 
 
 class Player():
@@ -137,7 +141,7 @@ class Player():
     score       - a tally of the player's score
     pieces      - A list of all pieces still in the player's hand
     '''
-    def __init__(color):
+    def __init__(self, color):
         self.score = 0
         self.color = color
         
@@ -146,8 +150,13 @@ class Player():
         with open('pieces.json') as pieces_json:
             pieces = json.load(pieces_json)
             for piece in pieces:
-                self.pieces.append(Piece(color=color, squares=piece[0]))
+                self.pieces.append(Piece(color=color, squares=piece))
 
+    def __repr__(self):
+        return 'Player: color={}, score={}, pieces={}'.format(self.color, self.score, [str(piece) for piece in self.pieces])
+
+    def __str__(self):
+        return repr(self)
 
 
 class Board():
