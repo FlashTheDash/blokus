@@ -4,28 +4,37 @@ This file holds all the core classes necessary to play a blokus game
 '''
 
 import json
-
+import copy
 
 class Piece():
     '''
     A single game piece. 
 
     Methods:
-    collides(self, other) - Returns True if collides with other
-
+    get_edge_squares()
+        - returns a list of edges of this piece, only for init
+    get_corner_squares() 
+        - returns a list of corners of this piece, only for init
+    square_locations()
+        - returns a list of where the squares would be based on an origin
+    edge_locations()
+        - square_locations() but for edges
+    corner_locations()
+        - square_locations() but for corners
+    
     Variables:
     color       - The color of the piece - red, blue, yellow, or green
-    value       - The point value of the piece and the amount of squares it has.
-
+    value       - The point value of the piece and the amount of squares it has
+    
     squares     - List of location of all squares relative to an arbitrary 
+    corners     - List of location of all squares that would be on a corner
+    edges       - List of location of all squares that would be on an edge
                     origin square location 
     rotation    - Value from 0-3. An increase of 1 in this value corresponds 
                     with a 90-degree clockwise rotation
     flipped     - True if flipped. Always flipped over y-axis
 
-    corners     - List of location of all squares that would be on a corner
-
-    '''
+     '''
     
     def __init__(self, color='red', squares=[[0,0]], rotation=0, flipped=False):
         self.color = color
@@ -44,6 +53,9 @@ class Piece():
     def __str__(self):
         return repr(self)
     
+    def __eq__(self, other):
+        return self.squares, self.rotation, self.flipped == other.squares, other.rotation, other.flipped
+
     def get_edge_squares(self):
         '''
         uses the squares list to create a list of squares where other pieces of
@@ -66,7 +78,7 @@ class Piece():
         where other pieces of the same color can go
         '''
         corners = []
-        for square in self.squares[:]:
+        for square in list(self.squares):
             # please forgive me
             # finds the diagonal squares to each square
             possible_corners = [[square[0]+a,square[1]+b] for a, b, square in [(1,1,square),(1,-1,square),(-1,1,square),(-1,-1,square)]]
@@ -79,7 +91,7 @@ class Piece():
         '''
         Returns a list of the locations of all squares, accounting for origin
         '''
-        squares_copy = self.squares[:]
+        squares_copy = copy.deepcopy(self.squares)
 
         for square in squares_copy:
             # account for rotation
@@ -103,7 +115,7 @@ class Piece():
         '''
         Returns a list of the locations of all corners, accounting for origin
         '''
-        corners_copy = self.corners[:]
+        corners_copy = copy.deepcopy(self.corners)
 
         for corner in corners_copy:
             # account for rotation
@@ -123,23 +135,47 @@ class Piece():
 
         return corners_copy
 
-    def collides(self, other):
-        other_locations = other.square_locations()
-        for location in self.square_locations():
-            if location in other_locations:
-                return False
-        return True
+    def edge_locations(self, origin):
+        '''
+        Returns a list of the locations of all corners, accounting for origin
+        '''
+        edges_copy = copy.deepcopy(self.edges)
+
+        for edge in edges_copy:
+            # account for rotation
+            # trust me, this works
+            if self.rotation % 4 == 1:
+                edge[0], edge[1] = edge[1], -edge[0]
+            if self.rotation % 4 == 2:
+                edge[0], edge[1] = -edge[0], -edge[1]
+            if self.rotation % 4 == 3:
+                edge[0], edge[1] = -edge[1], edge[0]
+            # account for flip
+            if self.flipped:
+                edge[0] *= -1
+            # account for origin
+            edge[0] += origin[0]
+            edge[1] += origin[1]
+
+        return edges_copy
 
 
 class Player():
+    # NOTE: ai players should probably subclass this and override choose_move()
     '''
     Represents a single player. Used to initialize all the pieces as well.
     Methods:
+    choose_move(board)
+        - chooses a move AND EXECUTES IT to reduce complexity
+            remember to add points as appropriate and remove played piece
+            from hand
+    get_legal_moves(board)
+        - returns a list of all legal moves, used by choose_move()
 
     Variables:
     color       - blue, yellow, red, green
     score       - a tally of the player's score
-    pieces      - A list of all pieces still in the player's hand
+    pieces      - A list of all pieces still in the player's han
     '''
     def __init__(self, color):
         self.score = 0
@@ -158,6 +194,76 @@ class Player():
     def __str__(self):
         return repr(self)
 
+    def get_legal_moves(self, board):
+        # brute force approach
+        legal_moves = []
+
+        for piece in enumerate(self.pieces[:]):
+            # every rotation
+            for rotation in range(4):
+                piece[1].rotation = rotation
+                # every flip
+                for flip in [True, False]:
+                    piece[1].flipped = flip
+                    # every square
+                    for row in range(board.height):
+                        for column in range(board.length):
+                            if board.is_legal_move(piece[1], [row, column]):
+                                legal_moves.append([piece[1], [row, column], rotation, flip])
+        # moves are represented as:
+        # [index in self.pieces, coords, rotation, flip]
+        return legal_moves
+
+
+    def choose_move(self, board):
+        legal_moves = self.get_legal_moves(board)
+        if not legal_moves:
+            print('no possible moves')
+            return False
+
+        move = [Piece(),[-1,-1]]
+        while move not in legal_moves:
+            print(legal_moves)
+
+            print('\ngimme a move')
+            x = int(input('x: '))
+            y = int(input('y: '))
+            rotation = int(input('rotation: '))
+            flip = bool(input('type anything for flip'))
+            try:
+                piece = self.pieces[int(input('piece index: '))]
+            except IndexError:
+                continue
+    
+            move = [piece, [x,y], rotation, flip]
+            print(move)
+            if bool(input('type something if you want to give up')):
+                return False
+        
+        print('applying move (it\'s valid btw)')
+        # apply move
+        piece.rotation = rotation
+        piece.flip = flip
+
+        for square in piece.square_locations(move[1]):
+            board.spaces[square[0]][square[1]] = self.color
+
+        for square in piece.corner_locations(move[1]):
+            board.corners[square[0]][square[1]].append(self.color)
+
+        for square in piece.edge_locations(move[1]):
+            board.edges[square[0]][square[1]].append(self.color)
+        
+        # add points
+        if len(self.pieces) == 1 and piece.value == 1:
+            self.score += 5
+        self.score += piece.value
+
+        # remove piece
+        self.pieces.remove(move[0])
+
+        return True
+
 
 class Board():
     '''
@@ -166,7 +272,6 @@ class Board():
     is_legal_move(self, piece, origin)
         - Returns True if move is legal. Accounts for corners, adjacency, and overlap
     
-    
     Variables:
     spaces      - 2d array that holds pieces
     corners     - 2d array that holds lists of colors that can play for each
@@ -174,17 +279,22 @@ class Board():
     edges       - 2d array that holds lists of colors that cannot play for
                     each square
     '''
-    def __init__(self, length=20, height=20, num_players=4):
+    def __init__(self, num_players=4, length=20, height=20):
         self.spaces = [[None for _ in range(height)] for _ in range(length)]
         self.edges = [[[] for _ in range(height)] for _ in range(length)]
-        self.corners = self.edges[:]
-        # set the corners to the players
+        self.corners = [[[] for _ in range(height)] for _ in range(length)]
+        
+        self.height = height
+        self.length = length
+
         self.corners[0][0].append('blue')
         self.corners[length-1][height-1].append('red')
         if num_players == 4:
+            self.players = [Player(color) for color in ['blue','yellow','red','green']]
             self.corners[length-1][0].append('yellow')
             self.corners[0][height-1].append('green')
-
+        else:
+            self.players = [Player('blue'), Player('red')]
 
     def is_legal_move(self, piece, origin):
         try:
@@ -194,7 +304,7 @@ class Board():
                 if self.spaces[location[0]][location[1]]:
                     return False
                 # adjacency
-                if piece.color in self.edges[location[0]][location[2]]:
+                if piece.color in self.edges[location[0]][location[1]]:
                     return False
                 # corners
                 if piece.color in self.corners[location[0]][location[1]]:
@@ -202,6 +312,4 @@ class Board():
             return has_corner
         except IndexError: # if the move would go outside of the board
             return False
-
-
 
