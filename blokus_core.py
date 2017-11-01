@@ -54,7 +54,7 @@ class Piece():
         return repr(self)
     
     def __eq__(self, other):
-        return self.squares, self.rotation, self.flipped == other.squares, other.rotation, other.flipped
+        return self.squares == other.squares
 
     def get_edge_squares(self):
         '''
@@ -92,7 +92,6 @@ class Piece():
         Returns a list of the locations of all squares, accounting for origin
         '''
         squares_copy = copy.deepcopy(self.squares)
-
         for square in squares_copy:
             # account for rotation
             # trust me, this works
@@ -115,49 +114,31 @@ class Piece():
         '''
         Returns a list of the locations of all corners, accounting for origin
         '''
-        corners_copy = copy.deepcopy(self.corners)
-
-        for corner in corners_copy:
-            # account for rotation
-            # trust me, this works
-            if self.rotation % 4 == 1:
-                corner[0], corner[1] = corner[1], -corner[0]
-            if self.rotation % 4 == 2:
-                corner[0], corner[1] = -corner[0], -corner[1]
-            if self.rotation % 4 == 3:
-                corner[0], corner[1] = -corner[1], corner[0]
-            # account for flip
-            if self.flipped:
-                corner[0] *= -1
-            # account for origin
-            corner[0] += origin[0]
-            corner[1] += origin[1]
-
-        return corners_copy
+        corners = []
+        for square in self.square_locations(origin):
+            # please forgive me
+            # finds the diagonal squares to each square
+            # looking back on this, I've gotten far worse
+            possible_corners = [[square[0]+a,square[1]+b] for a, b, square in [(1,1,square),(1,-1,square),(-1,1,square),(-1,-1,square)]]
+            for corner in possible_corners:
+                if corner not in self.square_locations(origin) + self.edge_locations(origin):
+                    corners.append(corner)
+        print(corners)
+        return corners
 
     def edge_locations(self, origin):
         '''
         Returns a list of the locations of all corners, accounting for origin
         '''
-        edges_copy = copy.deepcopy(self.edges)
-
-        for edge in edges_copy:
-            # account for rotation
-            # trust me, this works
-            if self.rotation % 4 == 1:
-                edge[0], edge[1] = edge[1], -edge[0]
-            if self.rotation % 4 == 2:
-                edge[0], edge[1] = -edge[0], -edge[1]
-            if self.rotation % 4 == 3:
-                edge[0], edge[1] = -edge[1], edge[0]
-            # account for flip
-            if self.flipped:
-                edge[0] *= -1
-            # account for origin
-            edge[0] += origin[0]
-            edge[1] += origin[1]
-
-        return edges_copy
+        edges = []
+        for square in self.square_locations(origin):
+            # please forgive me
+            # finds the adjacent squares to each square
+            possible_edges = [[square[0]+a,square[1]+b] for a, b, square in [(1,0,square),(-1,0,square),(0,1,square),(0,-1,square)]]
+            for edge in possible_edges:
+                if edge not in self.square_locations(origin):
+                    edges.append(edge)
+        return edges
 
 
 class Player():
@@ -311,5 +292,6 @@ class Board():
                     has_corner = True
             return has_corner
         except IndexError: # if the move would go outside of the board
+            print('index error in is_legal_move')
             return False
 
