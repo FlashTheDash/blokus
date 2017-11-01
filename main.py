@@ -30,7 +30,6 @@ def play_game(human_players=4, ai_players=0):
         for player in board.players:
             turn_indicator.config(bg=player.color)
             piece = player.pieces[0]
-            print(player.color + "'s turn")
             piece_index = -1
             move_chosen = False
             update_scores()
@@ -40,7 +39,6 @@ def play_game(human_players=4, ai_players=0):
             while not move_chosen:
                 root.update_idletasks()
                 root.update()
-            print('val: ', moves_not_made)
             if moves_not_made >= human_players:
                 game_over = True
                 break
@@ -50,7 +48,6 @@ def play_game(human_players=4, ai_players=0):
     # sort players into list of highest score first
     board.players.sort(key=lambda x: -x.score)
     # print that out, maybe do something else with this later
-    print('Game Over!')
     status_label.config(text=('Winner: ' + board.players[0].color))
     # TODO: should "probably" also handle ties
 
@@ -78,7 +75,6 @@ def choose_move(i, j, e):
     if board.is_legal_move(piece, [i,j]):
         # apply move
         for k, l in piece.square_locations([i,j]):
-            print(k, l)
             board.spaces[k][l] = piece.color
         for k, l in piece.corner_locations([i,j]):    
             if -1 < k < 20 and -1 < l < 20:
