@@ -123,7 +123,6 @@ class Piece():
             for corner in possible_corners:
                 if corner not in self.square_locations(origin) + self.edge_locations(origin):
                     corners.append(corner)
-        print(corners)
         return corners
 
     def edge_locations(self, origin):
@@ -292,6 +291,5 @@ class Board():
                     has_corner = True
             return has_corner
         except IndexError: # if the move would go outside of the board
-            print('index error in is_legal_move')
             return False
 
